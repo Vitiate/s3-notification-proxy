@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  s3-notification-proxy
+
+  This templated deploys the s3_notification_proxy_function and configures the supporting parameters.
+
+Globals:
+  Function:
+    Timeout: 300
+Parameters:
+  sqsAccount:
+    Type: String
+    Default: ##########
+
+Resources:
+  s3NotificationProxyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSLambda_FullAccess
+      Policies:
+        - PolicyName: !Sub SSMParameterAccess-${AWS::Region}
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: AllowSSMActions
+                Effect: Allow
+                Action:
+                  - ssm:GetParameters
+                  - ssm:GetParameter
+                  - ssm:PutParameter
+                  - ssm:DeleteParameter
+                Resource: !Sub arn:aws:ssm:*:${AWS::AccountId}:parameter/lambda/s3NotifyProxy/*
+        - PolicyName: !Sub SQSAccess-${AWS::Region}
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: AllowSQSActions
+                Effect: Allow
+                Action:
+                  - SQS:SendMessage
+                Resource: !Sub arn:aws:sqs:*:${sqsAccount}:*
+        - PolicyName: !Sub S3Access-${AWS::Region}
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: AllowsS3Actions
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetBucketTagging
+                Resource:
+                  - arn:aws:s3:::*/*
+                  - arn:aws:s3:::*
+        - PolicyName: !Sub CloudWatchLogGroup-${AWS::Region}
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: AllowsCloudWatchActions
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                Resource:
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*
+        - PolicyName: !Sub CloudWatchAccess-${AWS::Region}
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: AllowsCloudWatchActions
+                Effect: Allow
+                Action:
+                  - cloudwatch:*
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+
+  s3NotificationProxyParameterStore:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      DataType: text
+      Description: This SSM Parameter holds a configuration for parsing a log from s3 to a format usable by cloudwatch, this variable is base64 encoded.
+      Name: /lambda/s3NotifyProxy/ELB
+      Tier: Standard
+      Type: String
+      Value: ewogICJkYXRlRm9ybWF0IjogIklTTzg2MDEiLAogICJyZWdleCI6ICIoP1A8dHlwZT5bXlxcc1wiJ10rfFwiKFteXCJdKilcIilcXHMoP1A8dGltZT5bXlxcc1wiJ10rfFwiKFteXCJdKilcIilcXHMoP1A8ZWxiPlteXFxzXCInXSt8XCIoW15cIl0qKVwiKVxccyg/UDxjbGllbnRfcG9ydD5bXlxcc1wiJ10rfFwiKFteXCJdKilcIilcXHMoP1A8dGFyZ2V0X3BvcnQ+W15cXHNcIiddK3xcIihbXlwiXSopXCIpXFxzKD9QPHJlcXVlc3RfcHJvY2Vzc2luZ190aW1lPlteXFxzXCInXSt8XCIoW15cIl0qKVwiKVxccyg/UDx0YXJnZXRfcHJvY2Vzc2luZ190aW1lPlteXFxzXCInXSt8XCIoW15cIl0qKVwiKVxccyg/UDxyZXNwb25zZV9wcm9jZXNzaW5nX3RpbWU+W15cXHNcIiddK3xcIihbXlwiXSopXCIpXFxzKD9QPGVsYl9zdGF0dXNfY29kZT5bXlxcc1wiJ10rfFwiKFteXCJdKilcIilcXHMoP1A8dGFyZ2V0X3N0YXR1c19jb2RlPlteXFxzXCInXSt8XCIoW15cIl0qKVwiKVxccyg/UDxyZWNpZXZlZF9ieXRlcz5bXlxcc1wiJ10rfFwiKFteXCJdKilcIilcXHMoP1A8c2VudF9ieXRlcz5bXlxcc1wiJ10rfFwiKFteXCJdKilcIilcXHMoP1A8cmVxdWVzdD5bXlxcc1wiJ10rfFwiKFteXCJdKilcIilcXHMoP1A8dXNlcl9hZ2VudD5bXlxcc1wiJ10rfFwiKFteXCJdKilcIilcXHMoP1A8c3NsX2NpcGhlcj5bXlxcc1wiJ10rfFwiKFteXCJdKilcIilcXHMoP1A8c3NsX3Byb3RvY29sPlteXFxzXCInXSt8XCIoW15cIl0qKVwiKVxccyg/UDx0YXJnZXRfZ3JvdXBfYXJuPlteXFxzXCInXSt8XCIoW15cIl0qKVwiKVxccyg/UDx0cmFjZV9pZD5bXlxcc1wiJ10rfFwiKFteXCJdKilcIilcXHMoP1A8ZG9tYWluX25hbWU+W15cXHNcIiddK3xcIihbXlwiXSopXCIpXFxzKD9QPGNob3Nlbl9jZXJ0X2Fybj5bXlxcc1wiJ10rfFwiKFteXCJdKilcIilcXHMoP1A8bWF0Y2hlZF9ydWxlX3ByaW9yaXR5PlteXFxzXCInXSt8XCIoW15cIl0qKVwiKVxccyg/UDxyZXF1ZXN0X2NyZWF0aW9uX3RpbWU+W15cXHNcIiddK3xcIihbXlwiXSopXCIpXFxzKD9QPGFjdGlvbnNfZXhlY3V0ZWQ+W15cXHNcIiddK3xcIihbXlwiXSopXCIpXFxzKD9QPHJlZGlyZWN0X3VybD5bXlxcc1wiJ10rfFwiKFteXCJdKilcIilcXHMoP1A8ZXJyb3JfcmVhc29uPlteXFxzXCInXSt8XCIoW15cIl0qKVwiKVxccyg/UDx0YXJnZXRfcG9ydF9saXN0PlteXFxzXCInXSt8XCIoW15cIl0qKVwiKVxccyg/UDx0YXJnZXRfc3RhdHVzX2NvZGVfbGlzdD5bXlxcc1wiJ10rfFwiKFteXCJdKilcIilcXHMoP1A8Y2xhc3NpZmljYXRpb24+W15cXHNcIiddK3xcIihbXlwiXSopXCIpXFxzKD9QPGNsYXNzaWZpY2F0aW9uX3JlYXNvbj5bXlxcc1wiJ10rfFwiKFteXCJdKilcIikiLAogICJkYXRlRmllbGQiOiAidGltZSIKfQ==
+
+
+  s3NotificationProxyParameterStoreWAF:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      DataType: text
+      Description: This SSM Parameter holds a configuration for parsing a log from s3 to a format usable by cloudwatch, this variable is base64 encoded.
+      Name: /lambda/s3NotifyProxy/WAF
+      Tier: Standard
+      Type: String
+      Value: CnsKICAiZGF0ZUZvcm1hdCI6ICJ1bml4X21zIiwKICAiZGF0ZUZpZWxkIjogInRpbWVzdGFtcCIsCiAgImpzb25QYXRoIjogWwogICAgewogICAgICAia2V5IjogInRpbWVzdGFtcCIKICAgIH0sCiAgICB7CiAgICAgICJrZXkiOiAiZm9ybWF0VmVyc2lvbiIKICAgIH0sCiAgICB7CiAgICAgICJrZXkiOiAid2ViYWNsSWQiCiAgICB9LAogICAgewogICAgICAia2V5IjogInRlcm1pbmF0aW5nUnVsZUlkIgogICAgfSwKICAgIHsKICAgICAgImtleSI6ICJ0ZXJtaW5hdGluZ1J1bGVUeXBlIgogICAgfSwKICAgIHsKICAgICAgImtleSI6ICJhY3Rpb24iCiAgICB9LAogICAgewogICAgICAia2V5IjogInRlcm1pbmF0aW5nUnVsZU1hdGNoRGV0YWlscyIKICAgIH0sCiAgICB7CiAgICAgICJrZXkiOiAiaHR0cFNvdXJjZU5hbWUiCiAgICB9LAogICAgewogICAgICAia2V5IjogImh0dHBTb3VyY2VJZCIKICAgIH0sCiAgICB7CiAgICAgICJrZXkiOiAicnVsZUdyb3VwTGlzdCIKICAgIH0sCiAgICB7CiAgICAgICJrZXkiOiAicmF0ZUJhc2VkUnVsZUxpc3QiCiAgICB9LAogICAgewogICAgICAia2V5IjogIm5vblRlcm1pbmF0aW5nTWF0Y2hpbmdSdWxlcyIKICAgIH0sCiAgICB7CiAgICAgICJrZXkiOiAicmVxdWVzdEhlYWRlcnNJbnNlcnRlZCIKICAgIH0sCiAgICB7CiAgICAgICJrZXkiOiAicmVzcG9uc2VDb2RlU2VudCIKICAgIH0sCiAgICB7CiAgICAgICJrZXkiOiAiaHR0cFJlcXVlc3QiCiAgICB9LAogICAgewogICAgICAia2V5IjogInVyaSIKICAgIH0sCiAgICB7CiAgICAgICJrZXkiOiAiYXJncyIKICAgIH0sCiAgICB7CiAgICAgICJrZXkiOiAiaHR0cFZlcnNpb24iCiAgICB9LAogICAgewogICAgICAia2V5IjogImh0dHBNZXRob2QiCiAgICB9LAogICAgewogICAgICAia2V5IjogInJlcXVlc3RJZCIKICAgIH0KICBdCn0K
+
+  s3NotificationProxyFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      FunctionName: s3-notification-proxy-function
+      CodeUri: s3-notification-proxy-function/
+      Handler: app.lambda_handler
+      Runtime: python3.8
+      Role: !GetAtt s3NotificationProxyRole.Arn
