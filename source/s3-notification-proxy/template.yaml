@@ -81,8 +81,20 @@ Resources:
                   - cloudwatch:*
                   - logs:CreateLogStream
                   - logs:PutLogEvents
+                  - logs:DescribeLogStreams
                 Resource:
                   - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+        # Configure Invoke access to lambda functions here
+        - PolicyName: !Sub lambdaAccess-${AWS::Region}
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: AllowsLambdaInvoke
+                Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !Sub arn:aws:lambda:${AWS::Region}:#ACCOUNTID#:function:*
 
   s3NotificationProxyParameterStore:
     Type: 'AWS::SSM::Parameter'

@@ -11,7 +11,7 @@ logger.info("Starting Execution")
 
 def get_configuration_param(configTag):
   try:
-    ssmPath = "/lambda/NotifyProxy/" + configTag
+    ssmPath = "/lambda/s3NotifyProxy/" + configTag
     parameter=ssm.get_parameter(Name=ssmPath)
   except Exception as e:
     print(e)
